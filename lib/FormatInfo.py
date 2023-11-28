@@ -31,7 +31,7 @@ def linuxUserInfo(st_uid: int):
 
 # Format a timestamp
 def formatTime(Time: float):
-    return time.strftime("%Y年%m月%d日%H:%M:%S", time.localtime(Time))
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(Time))
 
 # Format a file mode
 def formatMode(mode: int):
