@@ -1,4 +1,4 @@
-from lib.FileOperate import getDirData,collectFileData
+from lib.FileOperate import getDirData, collectFileData
 from lib.Policy import setRule
 from lib.Config import *
 from lib.DBOperate import *
@@ -25,11 +25,11 @@ if __name__ == '__main__':
     now = time.time()
     connect = sqlite3.connect(initDB_Path)
     c = connect.cursor()
-    SQLcreatetable(c,'FILEDB')
-    print('Successfully created a new data table')
+    SQLcreatetable(c, 'FILEDB')
+    print('Successfully created the table')
     allfile = getDirData()
     buildInitDB(allfile)
-    print(time.time()-now)
+    print(time.time() - now)
     connect.commit()
     c.close()
     connect.close()
