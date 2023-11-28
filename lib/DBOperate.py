@@ -1,3 +1,4 @@
+import sqlite3
 filedb = {
     'PATH' : '',
     'STAT' : '',
