@@ -1,12 +1,30 @@
-import re
 from lib.Config import *
 from lib.FormatInfo import *
 from lib.MyStat import MystatFormated
+import sys
+import getopt
 import sqlite3
+from lib.Host import *
+from lib.DBOperate import recordmap
 import re
+import json
 
+from lib.Email import server, mail_content
 Objects = {}
 RuleHead = ''
+
+def createFileDBTable(conn):
+    c = conn.cursor()
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS FILEDB (
+        PATH  char(600) PRIMARY KEY  NOT NULL,
+        STAT   char NOT NULL,
+        MD5        char,
+        Rule_Type  char,
+        Rule_Check char,
+        Record char(1));
+    """)
+    conn.commit()
 
 def getReportTxt():
     Report = {}
@@ -21,9 +39,12 @@ def getReportTxt():
 def getData(datapath):
     global Objects
     connCheck = sqlite3.connect(datapath)
+    createFileDBTable(connCheck)  # Create FILEDB table if not exists
     cCheck = connCheck.cursor()
+        
     connInit = sqlite3.connect(initDB_Path)
     cInit = connInit.cursor()
+    
     cCheck.execute("select Rule_Type from FILEDB group by Rule_Type;")
     Rule_Type = cCheck.fetchall()
     for i in Rule_Type:
@@ -32,7 +53,8 @@ def getData(datapath):
         Record = cCheck.fetchall()
         for j in Record:
             Objects[i[0]][j[0]] = []
-            cCheck.execute("select PATH, STAT, MD5 from FILEDB where Rule_Type='%s' and Record='%s'" % (i[0], j[0]))
+            cCheck.execute(
+                "select PATH,STAT,MD5 from FILEDB where Rule_Type='%s' and Record='%s'" % (i[0], j[0]))
             Result = cCheck.fetchall()
             for k in Result:
                 row = {}
@@ -42,7 +64,7 @@ def getData(datapath):
                 if j[0] == 'm':
                     row['NEW']['STAT'] = MystatFormated(k[1]).__dict__
                     row['NEW']['MD5'] = k[2]
-                    cInit.execute("select STAT, MD5 from FILEDB where PATH='%s'" % row['PATH'])
+                    cInit.execute("select STAT,MD5 from FILEDB where PATH='%s'" % row['PATH'])
                     origin = cInit.fetchall()[0]
                     row['ORIGIN']['STAT'] = MystatFormated(origin[0]).__dict__
                     row['ORIGIN']['MD5'] = origin[1]
@@ -84,7 +106,7 @@ def getRuleSummary(RuleSummary):
             count = count + l
             row = row + str(l).ljust(9, ' ')
         else:
-            row = row + '0'.just(9, ' ')
+            row = row + '0'.ljust(9, ' ')
 
         if 'o' in Objects[i]:
             l = len(Objects[i]['o'])
@@ -96,7 +118,7 @@ def getRuleSummary(RuleSummary):
         if 'm' in Objects[i]:
             l = len(Objects[i]['m'])
             count = count + l
-            row = row + str(l).ljust(9, ' ')
+                        row = row + str(l).ljust(9, ' ')
         else:
             row = row + '0'.ljust(9, ' ')
         row = row + '\n'
@@ -114,7 +136,7 @@ def getRuleDetail():
         for i in Objects[Rule]:
             group = group + recordmap[i] + ':\n'
             for j in Objects[Rule][i]:
-                row = '"' + j['PATH'] + '"\n'
+                    row = '"' + j['PATH'] + '"\n'
                 group = group + row
         RulesDetail = RulesDetail + group
     return RulesDetail
@@ -151,7 +173,7 @@ def getChangeDetail(ChangeDetail):
                           '---'.ljust(35, ' ') + \
                           j['NEW']['MD5'].ljust(35, ' ') + '\n'
                 elif i == 'o':
-                    row = '  ' + 'MD5'.ljust(21, ' ') + \
+                            row = '  ' + 'MD5'.ljust(21, ' ') + \
                           j['ORIGIN']['MD5'].ljust(35, ' ') + \
                           '---'.ljust(35, ' ') + '\n'
                 group = group + row
@@ -171,8 +193,28 @@ def printReport(output_file):
         f.write(ReportTxt)
         f.close()
 
+def sendReport(output_file):
+    if os.stat(output_file).st_size > 1024 * 1024 * 5:
+        mail_content['content_text'] = 'Many files have been modified. Please log in to the server to check the report.'
+        server.send_mail(['pawanidananjana101@gmail.com'], mail_content)
+    else:
+        mail_content['attachments'].append(output_file)
+        server.send_mail(['pawanidananjana101@gmail.com'], mail_content)
+
+def pReport(input, out):
+    getData(input)
+    printReport(out)
+    sendReport(out)
+    
 if __name__ == '__main__':
     input_file = dataDir + '/test.db'
     output_file = dataDir + '/test.txt'
     Objects = getData(input_file)
     printReport(output_file)
+
+    if os.stat(output_file).st_size > 1024 * 1024 * 5:
+        mail_content['content_text'] = 'Many files have been modified. Please log in to the server to check the report.'
+        server.send_mail(['pawanidananjana101@gmail.com'], mail_content)
+    else:
+        mail_content['attachments'].append(output_file)
+        server.send_mail(['pawanidananjana101@gmail.com'], mail_content)
